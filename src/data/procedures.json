@@ -1,0 +1,27 @@
+{
+  "credit_transfer": {
+    "name": "Credit Transfer",
+    "template": "templates/credit_transfer.docx",
+    "instruction": "Credit Transfer Instructions:\n1. Fill out the application template\n2. Visit Room 301 (Academic Office)\n3. Provide transcript and course syllabi\n4. Processing time - 5 working days"
+  },
+  "industrial_practice": {
+    "name": "Industrial Practice",
+    "template": "templates/industrial_practice.docx",
+    "instruction": "Industrial Practice Instructions:\n1. Fill out the application template\n2. Visit Room 401 (Practice Department)\n3. Provide company agreement\n4. Receive practice assignment letter"
+  },
+  "academic_mobility": {
+    "name": "Academic Mobility",
+    "template": "templates/academic_mobility.docx",
+    "instruction": "Academic Mobility Instructions:\n1. Fill out the application template\n2. Visit Room 305 (International Office)\n3. Provide IELTS/TOEFL certificate\n4. Processing time - 10 working days"
+  },
+  "dual_education": {
+    "name": "Dual Education",
+    "template": "templates/dual_education.docx",
+    "instruction": "Dual Education Instructions:\n1. Fill out the application template\n2. Visit Room 402 (Dual Education Department)\n3. Provide company agreement\n4. Receive individual study schedule"
+  },
+  "thesis": {
+    "name": "Thesis Work",
+    "template": "templates/thesis.docx",
+    "instruction": "Thesis Work Instructions:\n1. Fill out the application template\n2. Visit Room 403 (Department Office)\n3. Agree on topic with scientific supervisor\n4. Receive thesis assignment"
+  }
+}

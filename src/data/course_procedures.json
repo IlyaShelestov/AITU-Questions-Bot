@@ -1,0 +1,10 @@
+{
+  "1": ["credit_transfer", "academic_mobility"],
+  "2": [
+    "credit_transfer",
+    "industrial_practice",
+    "academic_mobility",
+    "dual_education"
+  ],
+  "3": ["credit_transfer", "industrial_practice", "dual_education", "thesis"]
+}

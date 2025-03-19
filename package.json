@@ -1,0 +1,29 @@
+{
+  "name": "aitu-questions-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IlyaShelestov/AITU-Questions-Bot.git"
+  },
+  "keywords": [
+    "Telegram",
+    "Bot",
+    "AITU"
+  ],
+  "author": "Ilya Shelestov",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/IlyaShelestov/AITU-Questions-Bot/issues"
+  },
+  "homepage": "https://github.com/IlyaShelestov/AITU-Questions-Bot#readme",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "telegraf": "^4.16.3"
+  }
+}
