@@ -190,6 +190,16 @@ bot.hears(/\/flowchart (.+)/, async (ctx) => {
   await ctx.reply(answer);
 });
 
+bot.on("text", async (ctx) => {
+  const text = ctx.message.text;
+
+  if (text.startsWith("/")) return;
+
+  await ctx.reply(getMessage(ctx, "searching"));
+  const answer = await queryLLM(ctx, text);
+  await ctx.reply(answer);
+});
+
 bot.catch((err) => console.error("Bot error:", err));
 
 bot.launch().then(() => console.log("Bot started. Press Ctrl+C to stop."));
