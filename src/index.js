@@ -15,8 +15,20 @@ const LLM_API_URL = process.env.LLM_API_URL || "http://localhost:5000";
 
 async function queryLLM(ctx, question) {
   try {
-    const resposne = await axios.post(LLM_API_URL, { question });
+    const resposne = await axios.post(LLM_API_URL + "/chat", { question });
     return resposne.data.answer;
+  } catch (error) {
+    console.log("LLM API Error:", error);
+    return getMessage(ctx, "noLLMResponse");
+  }
+}
+
+async function queryLLMFlowchart(ctx, description) {
+  try {
+    const resposne = await axios.post(LLM_API_URL + "/flowchart", {
+      description,
+    });
+    return resposne.data.flowchart;
   } catch (error) {
     console.log("LLM API Error:", error);
     return getMessage(ctx, "noLLMResponse");
@@ -79,6 +91,7 @@ bot.telegram.setMyCommands([
   { command: "start", description: "Restart the bot" },
   { command: "language", description: "Select language" },
   { command: "ask", description: "(message) Ask a question" },
+  { command: "flowchart", description: "(message) Generate a flowchart" },
 ]);
 
 bot.start((ctx) => ctx.reply(getMessage(ctx, "welcome"), courseMenu(ctx)));
@@ -167,6 +180,13 @@ bot.hears(/\/ask (.+)/, async (ctx) => {
   const question = ctx.match[1];
   await ctx.reply(getMessage(ctx, "searching"));
   const answer = await queryLLM(ctx, question);
+  await ctx.reply(answer);
+});
+
+bot.hears(/\/flowchart (.+)/, async (ctx) => {
+  const question = ctx.match[1];
+  await ctx.reply(getMessage(ctx, "generating"));
+  const answer = await queryLLMFlowchart(ctx, question);
   await ctx.reply(answer);
 });
 
