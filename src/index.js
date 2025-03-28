@@ -5,6 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const procedures = require("./data/procedures.json");
 const courseProcedures = require("./data/course_procedures.json");
+const messages = require("./data/language.json");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.use(session());
@@ -12,14 +13,21 @@ bot.use(session());
 const clickCounts = {};
 const LLM_API_URL = process.env.LLM_API_URL || "http://localhost:5000";
 
-async function queryLLM(question) {
+async function queryLLM(ctx, question) {
   try {
     const resposne = await axios.post(LLM_API_URL, { question });
     return resposne.data.answer;
   } catch (error) {
     console.log("LLM API Error:", error);
-    return "Sorry, I couldn't process your request at the moment. Please try again later.";
+    return getMessage(ctx, "noLLMResponse");
   }
+}
+
+function getMessage(ctx, key) {
+  const sessionLang = ctx.session?.language;
+  const userLang = ctx.from.language_code;
+  const lang = sessionLang || userLang || "en";
+  return messages[lang]?.[key] || messages["en"][key];
 }
 
 function hasFAQProcedures() {
@@ -65,21 +73,32 @@ function faqMenu() {
 
 bot.telegram.setMyCommands([
   { command: "start", description: "Restart the bot" },
+  { command: "language", description: "Select language" },
   { command: "ask", description: "(message) Ask a question" },
 ]);
 
-bot.start((ctx) =>
-  ctx.reply(
-    "Welcome! Please select your year of study or check our FAQ:",
-    courseMenu()
-  )
-);
+bot.start((ctx) => ctx.reply(getMessage(ctx, "welcome"), courseMenu()));
+
+bot.command("language", (ctx) => {
+  return ctx.reply(
+    "Choose language:",
+    Markup.inlineKeyboard([
+      [Markup.button.callback("🇬🇧 English", "lang_en")],
+      [Markup.button.callback("🇷🇺 Русский", "lang_ru")],
+      [Markup.button.callback("🇰🇿 Қазақша", "lang_kk")],
+    ])
+  );
+});
+
+bot.action(/lang_(.+)/, (ctx) => {
+  const selectedLang = ctx.match[1];
+  ctx.session = ctx.session || {};
+  ctx.session.language = selectedLang;
+  return ctx.reply(`Language set to: ${selectedLang.toUpperCase()}`);
+});
 
 bot.action("back_to_years", (ctx) =>
-  ctx.editMessageText(
-    "Welcome! Please select your year of study or check our FAQ:",
-    courseMenu()
-  )
+  ctx.editMessageText(getMessage(ctx, "welcome"), courseMenu())
 );
 
 bot.action("faq", (ctx) =>
@@ -87,10 +106,7 @@ bot.action("faq", (ctx) =>
 );
 
 bot.action("no_faq", (ctx) =>
-  ctx.editMessageText(
-    "No FAQs available yet. Please select your year of study:",
-    courseMenu()
-  )
+  ctx.editMessageText(getMessage(ctx, "noFAQYear"), courseMenu())
 );
 
 bot.action(/course_(.+)/, (ctx) => {
@@ -98,7 +114,7 @@ bot.action(/course_(.+)/, (ctx) => {
   ctx.session = ctx.session || {};
   ctx.session.selectedCourse = course;
   return ctx.editMessageText(
-    "Select the procedure you need information about:",
+    getMessage(ctx, "selectProcedure"),
     proceduresMenu(course)
   );
 });
@@ -113,7 +129,7 @@ bot.action(/procedure_(.+)/, async (ctx) => {
   const buttons = [
     [
       Markup.button.callback(
-        "⬅️ Back to Procedures",
+        getMessage(ctx, "backToProcedures"),
         `back_to_procedures_${course}`
       ),
     ],
@@ -131,22 +147,22 @@ bot.action(/procedure_(.+)/, async (ctx) => {
       filename: `Template_${procedure.name}.docx`,
     });
   } else {
-    await ctx.reply("Template file not found. Please contact administrator.");
+    await ctx.reply(getMessage(ctx, "noTemplate"));
   }
 });
 
 bot.action(/back_to_procedures_(.+)/, (ctx) => {
   const course = ctx.match[1];
   return ctx.editMessageText(
-    "Select the procedure you need information about:",
+    getMessage(ctx, "selectProcedure"),
     proceduresMenu(course)
   );
 });
 
 bot.hears(/\/ask (.+)/, async (ctx) => {
   const question = ctx.match[1];
-  await ctx.reply("🔍 Searching for the answer...");
-  const answer = await queryLLM(question);
+  await ctx.reply(getMessage(ctx, "searching"));
+  const answer = await queryLLM(ctx, question);
   await ctx.reply(answer);
 });
 
