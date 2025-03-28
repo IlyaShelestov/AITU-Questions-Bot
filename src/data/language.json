@@ -6,7 +6,15 @@
     "noLLMResponse": "Sorry, I couldn't process your request at the moment. Please try again later.",
     "selectProcedure": "Select the procedure you need information about:",
     "backToProcedures": "⬅️ Back to Procedures",
-    "noFAQYear": "No FAQs available yet. Please select your year of study:"
+    "noFAQYear": "No FAQs available yet. Please select your year of study:",
+    "noFAQ": "No procedures in FAQ yet.",
+    "backToYears": "⬅️ Back to Years",
+    "FAQ": "Frequently Asked Questions:",
+    "selectLanguage": "Choose language:",
+    "setLanguage": "Language set to: ",
+    "year_1": "1st Year",
+    "year_2": "2nd Year",
+    "year_3": "3rd Year"
   },
   "ru": {
     "welcome": "Добро пожаловать! Пожалуйста, выберите свой курс или FAQ:",
@@ -15,7 +23,15 @@
     "noLLMResponse": "Извините, я не смог обработать ваш запрос в данный момент. Пожалуйста, попробуйте позже.",
     "selectProcedure": "Выберите процедуру, по которой вам нужна информация:",
     "backToProcedures": "⬅️ Назад к процедурам",
-    "noFAQYear": "Пока нет доступных FAQ. Пожалуйста, выберите свой курс:"
+    "noFAQYear": "Пока нет доступных FAQ. Пожалуйста, выберите свой курс:",
+    "noFAQ": "Пока нет процедур в FAQ.",
+    "backToYears": "⬅️ Назад к курсам",
+    "FAQ": "Часто задаваемые вопросы:",
+    "selectLanguage": "Выберите язык:",
+    "setLanguage": "Язык установлен на: ",
+    "year_1": "1-й курс",
+    "year_2": "2-й курс",
+    "year_3": "3-й курс"
   },
   "kk": {
     "welcome": "Қош келдіңіз! Курсыңызды немесе FAQ таңдаңыз:",
@@ -24,6 +40,14 @@
     "noLLMResponse": "Кешіріңіз, мен сіздің сұрауыңызды қазіргі уақытта өңдей алмадым. Кейінірек қайтадан көріңіз.",
     "selectProcedure": "Сізге ақпарат қажет процедураны таңдаңыз:",
     "backToProcedures": "⬅️ Процедураларға оралу",
-    "noFAQYear": "Әзірге қолжетімді FAQ жоқ. Курсыңызды таңдаңыз:"
+    "noFAQYear": "Әзірге қолжетімді FAQ жоқ. Курсыңызды таңдаңыз:",
+    "noFAQ": "Әзірге FAQ-да процедуралар жоқ.",
+    "backToYears": "⬅️ Курстарға оралу",
+    "FAQ": "Жиі қойылатын сұрақтар:",
+    "selectLanguage": "Тілді таңдаңыз:",
+    "setLanguage": "Тіл орнатылды: ",
+    "year_1": "1-курс",
+    "year_2": "2-курс",
+    "year_3": "3-курс"
   }
 }

@@ -38,35 +38,39 @@ function getFAQProcedures() {
   return Object.keys(clickCounts).filter((key) => clickCounts[key] > 2);
 }
 
-function courseMenu() {
+function courseMenu(ctx) {
   const buttons = [
-    [Markup.button.callback("1st Year", "course_1")],
-    [Markup.button.callback("2nd Year", "course_2")],
-    [Markup.button.callback("3rd Year", "course_3")],
+    [Markup.button.callback(getMessage(ctx, "year_1"), "course_1")],
+    [Markup.button.callback(getMessage(ctx, "year_2"), "course_2")],
+    [Markup.button.callback(getMessage(ctx, "year_3"), "course_3")],
   ];
   if (hasFAQProcedures()) buttons.push([Markup.button.callback("FAQ", "faq")]);
 
   return Markup.inlineKeyboard(buttons);
 }
 
-function proceduresMenu(course) {
+function proceduresMenu(ctx, course) {
   const buttons = courseProcedures[course].map((proc) => [
     Markup.button.callback(procedures[proc].name, `procedure_${proc}`),
   ]);
-  buttons.push([Markup.button.callback("⬅️ Back to Years", "back_to_years")]);
+  buttons.push([
+    Markup.button.callback(getMessage(ctx, "backToYears"), "back_to_years"),
+  ]);
 
   return Markup.inlineKeyboard(buttons);
 }
 
-function faqMenu() {
+function faqMenu(ctx) {
   const faqList = getFAQProcedures();
   const buttons = faqList.length
     ? faqList.map((proc) => [
         Markup.button.callback(procedures[proc].name, `procedure_${proc}`),
       ])
-    : [[Markup.button.callback("No procedures in FAQ yet", "no_faq")]];
+    : [[Markup.button.callback(getMessage(ctx, "noFAQ"), "no_faq")]];
 
-  buttons.push([Markup.button.callback("⬅️ Back to Years", "back_to_years")]);
+  buttons.push([
+    Markup.button.callback(getMessage(ctx, "backToYears"), "back_to_years"),
+  ]);
 
   return Markup.inlineKeyboard(buttons);
 }
@@ -77,11 +81,11 @@ bot.telegram.setMyCommands([
   { command: "ask", description: "(message) Ask a question" },
 ]);
 
-bot.start((ctx) => ctx.reply(getMessage(ctx, "welcome"), courseMenu()));
+bot.start((ctx) => ctx.reply(getMessage(ctx, "welcome"), courseMenu(ctx)));
 
 bot.command("language", (ctx) => {
   return ctx.reply(
-    "Choose language:",
+    getMessage(ctx, "selectLanguage"),
     Markup.inlineKeyboard([
       [Markup.button.callback("🇬🇧 English", "lang_en")],
       [Markup.button.callback("🇷🇺 Русский", "lang_ru")],
@@ -94,19 +98,19 @@ bot.action(/lang_(.+)/, (ctx) => {
   const selectedLang = ctx.match[1];
   ctx.session = ctx.session || {};
   ctx.session.language = selectedLang;
-  return ctx.reply(`Language set to: ${selectedLang.toUpperCase()}`);
+  return ctx.reply(getMessage(ctx, "setLanguage") + selectedLang.toUpperCase());
 });
 
 bot.action("back_to_years", (ctx) =>
-  ctx.editMessageText(getMessage(ctx, "welcome"), courseMenu())
+  ctx.editMessageText(getMessage(ctx, "welcome"), courseMenu(ctx))
 );
 
 bot.action("faq", (ctx) =>
-  ctx.editMessageText("Frequently Asked Procedures:", faqMenu())
+  ctx.editMessageText(getMessage(ctx, "FAQ"), faqMenu(ctx))
 );
 
 bot.action("no_faq", (ctx) =>
-  ctx.editMessageText(getMessage(ctx, "noFAQYear"), courseMenu())
+  ctx.editMessageText(getMessage(ctx, "noFAQYear"), courseMenu(ctx))
 );
 
 bot.action(/course_(.+)/, (ctx) => {
@@ -115,7 +119,7 @@ bot.action(/course_(.+)/, (ctx) => {
   ctx.session.selectedCourse = course;
   return ctx.editMessageText(
     getMessage(ctx, "selectProcedure"),
-    proceduresMenu(course)
+    proceduresMenu(ctx, course)
   );
 });
 
@@ -155,7 +159,7 @@ bot.action(/back_to_procedures_(.+)/, (ctx) => {
   const course = ctx.match[1];
   return ctx.editMessageText(
     getMessage(ctx, "selectProcedure"),
-    proceduresMenu(course)
+    proceduresMenu(ctx, course)
   );
 });
 
