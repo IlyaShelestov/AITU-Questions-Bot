@@ -1,13 +1,26 @@
 require("dotenv").config();
-const { Telegraf, Markup } = require("telegraf");
+const { Telegraf, Markup, session } = require("telegraf");
+const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 const procedures = require("./data/procedures.json");
 const courseProcedures = require("./data/course_procedures.json");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
+bot.use(session());
 
 const clickCounts = {};
+const LLM_API_URL = process.env.LLM_API_URL || "http://localhost:5000";
+
+async function queryLLM(question) {
+  try {
+    const resposne = await axios.post(LLM_API_URL, { question });
+    return resposne.data.answer;
+  } catch (error) {
+    console.log("LLM API Error:", error);
+    return "Sorry, I couldn't process your request at the moment. Please try again later.";
+  }
+}
 
 function hasFAQProcedures() {
   return Object.values(clickCounts).some((count) => count > 2);
@@ -49,6 +62,11 @@ function faqMenu() {
 
   return Markup.inlineKeyboard(buttons);
 }
+
+bot.telegram.setMyCommands([
+  { command: "start", description: "Restart the bot" },
+  { command: "ask", description: "(message) Ask a question" },
+]);
 
 bot.start((ctx) =>
   ctx.reply(
@@ -123,6 +141,13 @@ bot.action(/back_to_procedures_(.+)/, (ctx) => {
     "Select the procedure you need information about:",
     proceduresMenu(course)
   );
+});
+
+bot.hears(/\/ask (.+)/, async (ctx) => {
+  const question = ctx.match[1];
+  await ctx.reply("🔍 Searching for the answer...");
+  const answer = await queryLLM(question);
+  await ctx.reply(answer);
 });
 
 bot.catch((err) => console.error("Bot error:", err));
