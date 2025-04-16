@@ -15,7 +15,8 @@
     "setLanguage": "Language set to: ",
     "year_1": "1st Year",
     "year_2": "2nd Year",
-    "year_3": "3rd Year"
+    "year_3": "3rd Year",
+    "historyCleared": "History cleared successfully."
   },
   "ru": {
     "welcome": "Добро пожаловать! Пожалуйста, выберите свой курс или FAQ:",
@@ -33,7 +34,8 @@
     "setLanguage": "Язык установлен на: ",
     "year_1": "1-й курс",
     "year_2": "2-й курс",
-    "year_3": "3-й курс"
+    "year_3": "3-й курс",
+    "historyCleared": "История успешно очищена."
   },
   "kk": {
     "welcome": "Қош келдіңіз! Курсыңызды немесе FAQ таңдаңыз:",
@@ -51,6 +53,7 @@
     "setLanguage": "Тіл орнатылды: ",
     "year_1": "1-курс",
     "year_2": "2-курс",
-    "year_3": "3-курс"
+    "year_3": "3-курс",
+    "historyCleared": "Тарих сәтті тазартылды."
   }
 }

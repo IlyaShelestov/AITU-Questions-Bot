@@ -55,14 +55,9 @@ async function checkAndClearSession(ctx) {
 
   if (now - lastCleared > 86400000) {
     try {
-      await axios.post(
-        `${LLM_API_URL}/api/${
-          ctx.session?.isTeacher ? "teacher" : "student"
-        }/chat/clear`,
-        {
-          session_id: sessionId,
-        }
-      );
+      await axios.post(`${LLM_API_URL}/api/student/chat/clear`, {
+        session_id: sessionId,
+      });
 
       sessionLastCleared[sessionId] = now;
       console.log(`Cleared session for user ${ctx.from.id}`);
@@ -157,7 +152,6 @@ function faqMenu(ctx) {
 bot.telegram.setMyCommands([
   { command: "start", description: "Restart the bot" },
   { command: "language", description: "Select language" },
-  { command: "ask", description: "(message) Ask a question" },
   { command: "flowchart", description: "(message) Generate a flowchart" },
   { command: "clear", description: "Clear chat history" },
 ]);
@@ -260,13 +254,6 @@ bot.action(/back_to_procedures_(.+)/, (ctx) => {
     getMessage(ctx, "selectProcedure"),
     proceduresMenu(ctx, course)
   );
-});
-
-bot.hears(/\/ask (.+)/, async (ctx) => {
-  const question = ctx.match[1];
-  await ctx.reply(getMessage(ctx, "searching"));
-  const answer = await queryLLM(ctx, question);
-  await ctx.reply(answer);
 });
 
 bot.hears(/\/flowchart (.+)/, async (ctx) => {
