@@ -12,11 +12,19 @@ bot.use(session());
 
 const clickCounts = {};
 const LLM_API_URL = process.env.LLM_API_URL || "http://localhost:5000";
+const sessionLastCleared = {};
 
 async function queryLLM(ctx, question) {
   try {
-    const resposne = await axios.post(LLM_API_URL + "/chat", { question });
-    return resposne.data.answer;
+    await checkAndClearSession(ctx);
+
+    const sessionId = `telegram_${ctx.from.id}`;
+    const response = await axios.post(LLM_API_URL + "/api/student/chat", {
+      query: question,
+      session_id: sessionId,
+    });
+
+    return response.data.answer;
   } catch (error) {
     console.log("LLM API Error:", error);
     return getMessage(ctx, "noLLMResponse");
@@ -25,14 +33,73 @@ async function queryLLM(ctx, question) {
 
 async function queryLLMFlowchart(ctx, description) {
   try {
-    const resposne = await axios.post(LLM_API_URL + "/flowchart", {
-      description,
+    await checkAndClearSession(ctx);
+
+    const sessionId = `telegram_${ctx.from.id}`;
+    const response = await axios.post(LLM_API_URL + "/api/teacher/flowchart", {
+      query: description,
+      session_id: sessionId,
     });
-    return resposne.data.flowchart;
+
+    return formatFlowchartResponse(response.data);
   } catch (error) {
     console.log("LLM API Error:", error);
     return getMessage(ctx, "noLLMResponse");
   }
+}
+
+async function checkAndClearSession(ctx) {
+  const sessionId = `telegram_${ctx.from.id}`;
+  const now = Date.now();
+  const lastCleared = sessionLastCleared[sessionId] || 0;
+
+  if (now - lastCleared > 86400000) {
+    try {
+      await axios.post(
+        `${LLM_API_URL}/api/${
+          ctx.session?.isTeacher ? "teacher" : "student"
+        }/chat/clear`,
+        {
+          session_id: sessionId,
+        }
+      );
+
+      sessionLastCleared[sessionId] = now;
+      console.log(`Cleared session for user ${ctx.from.id}`);
+    } catch (error) {
+      console.log("Error clearing session history:", error);
+    }
+  }
+}
+
+function formatFlowchartResponse(flowchartData) {
+  let result = "📊 Flowchart:\n\n";
+
+  if (flowchartData.nodes && flowchartData.nodes.length > 0) {
+    result += "Nodes:\n";
+    flowchartData.nodes.forEach((node) => {
+      result += `${node.id}. ${node.label} (${node.type})\n`;
+    });
+    result += "\n";
+  }
+
+  if (flowchartData.edges && flowchartData.edges.length > 0) {
+    result += "Connections:\n";
+    flowchartData.edges.forEach((edge) => {
+      const condition = edge.condition ? ` (${edge.condition})` : "";
+      result += `${edge.from} → ${edge.to}${condition}\n`;
+    });
+    result += "\n";
+  }
+
+  if (flowchartData.sources && flowchartData.sources.length > 0) {
+    result += "Sources:\n";
+    flowchartData.sources.forEach((source) => {
+      result += `• ${source}\n`;
+    });
+  }
+
+  return result;
 }
 
 function getMessage(ctx, key) {
@@ -92,6 +159,7 @@ bot.telegram.setMyCommands([
   { command: "language", description: "Select language" },
   { command: "ask", description: "(message) Ask a question" },
   { command: "flowchart", description: "(message) Generate a flowchart" },
+  { command: "clear", description: "Clear chat history" },
 ]);
 
 bot.start((ctx) => ctx.reply(getMessage(ctx, "welcome"), courseMenu(ctx)));
@@ -105,6 +173,24 @@ bot.command("language", (ctx) => {
       [Markup.button.callback("🇰🇿 Қазақша", "lang_kk")],
     ])
   );
+});
+
+bot.command("clear", async (ctx) => {
+  const sessionId = `telegram_${ctx.from.id}`;
+  try {
+    await axios.post(`${LLM_API_URL}/api/student/chat/clear`, {
+      session_id: sessionId,
+    });
+    sessionLastCleared[sessionId] = Date.now();
+    await ctx.reply(
+      getMessage(ctx, "historyCleared") || "Chat history cleared!"
+    );
+  } catch (error) {
+    console.log("Error clearing chat history:", error);
+    await ctx.reply(
+      getMessage(ctx, "errorClearingHistory") || "Failed to clear chat history."
+    );
+  }
 });
 
 bot.action(/lang_(.+)/, (ctx) => {
