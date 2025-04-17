@@ -17,16 +17,14 @@ const sessionLastCleared = {};
 async function queryLLM(ctx, question) {
   try {
     await checkAndClearSession(ctx);
-
     const sessionId = `telegram_${ctx.from.id}`;
-    const response = await axios.post(LLM_API_URL + "/api/student/chat", {
+    const { data } = await axios.post(`${LLM_API_URL}/api/student/chat`, {
       query: question,
       session_id: sessionId,
     });
-
-    return response.data.answer;
-  } catch (error) {
-    console.log("LLM API Error:", error);
+    return data.answer;
+  } catch (e) {
+    console.error("LLM API Error:", e);
     return getMessage(ctx, "noLLMResponse");
   }
 }
@@ -34,65 +32,41 @@ async function queryLLM(ctx, question) {
 async function queryLLMFlowchart(ctx, description) {
   try {
     await checkAndClearSession(ctx);
-
     const sessionId = `telegram_${ctx.from.id}`;
-    const response = await axios.post(LLM_API_URL + "/api/student/flowchart", {
+    const { data } = await axios.post(`${LLM_API_URL}/api/teacher/flowchart`, {
       query: description,
       session_id: sessionId,
     });
-
-    return formatFlowchartResponse(response.data);
-  } catch (error) {
-    console.log("LLM API Error:", error);
-    return getMessage(ctx, "noLLMResponse");
+    return data; // { mermaid: "...", sources: [...] }
+  } catch (e) {
+    console.error("LLM API Error:", e);
+    return null;
   }
 }
 
 async function checkAndClearSession(ctx) {
   const sessionId = `telegram_${ctx.from.id}`;
   const now = Date.now();
-  const lastCleared = sessionLastCleared[sessionId] || 0;
-
-  if (now - lastCleared > 86400000) {
+  const last = sessionLastCleared[sessionId] || 0;
+  if (now - last > 86400000) {
     try {
-      await axios.get(`${LLM_API_URL}/api/student/chat/clear?session_id=${sessionId}`);
-
+      await axios.get(
+        `${LLM_API_URL}/api/student/chat/clear?session_id=${sessionId}`
+      );
       sessionLastCleared[sessionId] = now;
-      console.log(`Cleared session for user ${ctx.from.id}`);
-    } catch (error) {
-      console.log("Error clearing session history:", error);
+    } catch (e) {
+      console.error("Error clearing session:", e);
     }
   }
 }
 
-function formatFlowchartResponse(flowchartData) {
-  let result = "📊 Flowchart:\n\n";
-
-  if (flowchartData.nodes && flowchartData.nodes.length > 0) {
-    result += "Nodes:\n";
-    flowchartData.nodes.forEach((node) => {
-      result += `${node.id}. ${node.label} (${node.type})\n`;
-    });
-    result += "\n";
-  }
-
-  if (flowchartData.edges && flowchartData.edges.length > 0) {
-    result += "Connections:\n";
-    flowchartData.edges.forEach((edge) => {
-      const condition = edge.condition ? ` (${edge.condition})` : "";
-      result += `${edge.from} → ${edge.to}${condition}\n`;
-    });
-    result += "\n";
-  }
-
-  if (flowchartData.sources && flowchartData.sources.length > 0) {
-    result += "Sources:\n";
-    flowchartData.sources.forEach((source) => {
-      result += `• ${source}\n`;
-    });
-  }
-
-  return result;
+async function fetchMermaidImageFromKroki(mermaidDef, format = "png") {
+  const url = `https://kroki.io/mermaid/${format}`;
+  const res = await axios.post(url, mermaidDef, {
+    responseType: "arraybuffer",
+    headers: { "Content-Type": "text/plain" },
+  });
+  return res.data;
 }
 
 function getMessage(ctx, key) {
@@ -103,11 +77,10 @@ function getMessage(ctx, key) {
 }
 
 function hasFAQProcedures() {
-  return Object.values(clickCounts).some((count) => count > 2);
+  return Object.values(clickCounts).some((c) => c > 2);
 }
-
 function getFAQProcedures() {
-  return Object.keys(clickCounts).filter((key) => clickCounts[key] > 2);
+  return Object.keys(clickCounts).filter((k) => clickCounts[k] > 2);
 }
 
 function courseMenu(ctx) {
@@ -117,33 +90,29 @@ function courseMenu(ctx) {
     [Markup.button.callback(getMessage(ctx, "year_3"), "course_3")],
   ];
   if (hasFAQProcedures()) buttons.push([Markup.button.callback("FAQ", "faq")]);
-
   return Markup.inlineKeyboard(buttons);
 }
 
 function proceduresMenu(ctx, course) {
-  const buttons = courseProcedures[course].map((proc) => [
-    Markup.button.callback(procedures[proc].name, `procedure_${proc}`),
+  const buttons = courseProcedures[course].map((p) => [
+    Markup.button.callback(procedures[p].name, `procedure_${p}`),
   ]);
   buttons.push([
     Markup.button.callback(getMessage(ctx, "backToYears"), "back_to_years"),
   ]);
-
   return Markup.inlineKeyboard(buttons);
 }
 
 function faqMenu(ctx) {
-  const faqList = getFAQProcedures();
-  const buttons = faqList.length
-    ? faqList.map((proc) => [
-        Markup.button.callback(procedures[proc].name, `procedure_${proc}`),
+  const list = getFAQProcedures();
+  const buttons = list.length
+    ? list.map((p) => [
+        Markup.button.callback(procedures[p].name, `procedure_${p}`),
       ])
     : [[Markup.button.callback(getMessage(ctx, "noFAQ"), "no_faq")]];
-
   buttons.push([
     Markup.button.callback(getMessage(ctx, "backToYears"), "back_to_years"),
   ]);
-
   return Markup.inlineKeyboard(buttons);
 }
 
@@ -156,91 +125,78 @@ bot.telegram.setMyCommands([
 
 bot.start((ctx) => ctx.reply(getMessage(ctx, "welcome"), courseMenu(ctx)));
 
-bot.command("language", (ctx) => {
-  return ctx.reply(
+bot.command("language", (ctx) =>
+  ctx.reply(
     getMessage(ctx, "selectLanguage"),
     Markup.inlineKeyboard([
       [Markup.button.callback("🇬🇧 English", "lang_en")],
       [Markup.button.callback("🇷🇺 Русский", "lang_ru")],
       [Markup.button.callback("🇰🇿 Қазақша", "lang_kk")],
     ])
-  );
-});
+  )
+);
 
 bot.command("clear", async (ctx) => {
-  const sessionId = `telegram_${ctx.from.id}`;
-
+  const sid = `telegram_${ctx.from.id}`;
   try {
-    await axios.get(
-      `${LLM_API_URL}/api/student/chat/clear?session_id=${sessionId}`
-    );
-    sessionLastCleared[sessionId] = Date.now();
-    await ctx.reply(
-      getMessage(ctx, "historyCleared") || "Chat history cleared!"
-    );
-  } catch (error) {
-    console.log("Error clearing chat history:", error);
-    await ctx.reply(
-      getMessage(ctx, "errorClearingHistory") || "Failed to clear chat history."
-    );
+    await axios.get(`${LLM_API_URL}/api/student/chat/clear?session_id=${sid}`);
+    sessionLastCleared[sid] = Date.now();
+    await ctx.reply(getMessage(ctx, "historyCleared"));
+  } catch {
+    await ctx.reply(getMessage(ctx, "errorClearingHistory"));
   }
 });
 
 bot.action(/lang_(.+)/, (ctx) => {
-  const selectedLang = ctx.match[1];
+  const lang = ctx.match[1];
   ctx.session = ctx.session || {};
-  ctx.session.language = selectedLang;
-  return ctx.reply(getMessage(ctx, "setLanguage") + selectedLang.toUpperCase());
+  ctx.session.language = lang;
+  return ctx.reply(getMessage(ctx, "setLanguage") + lang.toUpperCase());
 });
 
 bot.action("back_to_years", (ctx) =>
   ctx.editMessageText(getMessage(ctx, "welcome"), courseMenu(ctx))
 );
-
 bot.action("faq", (ctx) =>
   ctx.editMessageText(getMessage(ctx, "FAQ"), faqMenu(ctx))
 );
-
 bot.action("no_faq", (ctx) =>
   ctx.editMessageText(getMessage(ctx, "noFAQYear"), courseMenu(ctx))
 );
 
 bot.action(/course_(.+)/, (ctx) => {
-  const course = ctx.match[1];
+  const c = ctx.match[1];
   ctx.session = ctx.session || {};
-  ctx.session.selectedCourse = course;
+  ctx.session.selectedCourse = c;
   return ctx.editMessageText(
     getMessage(ctx, "selectProcedure"),
-    proceduresMenu(ctx, course)
+    proceduresMenu(ctx, c)
   );
 });
 
 bot.action(/procedure_(.+)/, async (ctx) => {
-  const procKey = ctx.match[1];
-  clickCounts[procKey] = (clickCounts[procKey] || 0) + 1;
-
-  const procedure = procedures[procKey];
+  const key = ctx.match[1];
+  clickCounts[key] = (clickCounts[key] || 0) + 1;
+  const proc = procedures[key];
   const course = ctx.session?.selectedCourse || "1";
 
-  const buttons = [
-    [
-      Markup.button.callback(
-        getMessage(ctx, "backToProcedures"),
-        `back_to_procedures_${course}`
-      ),
-    ],
-  ];
-
   await ctx.editMessageText(
-    `📝 ${procedure.name}\n${procedure.instruction}`,
-    Markup.inlineKeyboard(buttons)
+    `📝 ${proc.name}\n${proc.instruction}`,
+    Markup.inlineKeyboard([
+      [
+        Markup.button.callback(
+          getMessage(ctx, "backToProcedures"),
+          `back_to_procedures_${course}`
+        ),
+      ],
+    ])
   );
 
-  const templatePath = path.join(__dirname, procedure.template);
-  if (fs.existsSync(templatePath)) {
+  const tpl = path.join(__dirname, proc.template);
+  if (fs.existsSync(tpl)) {
     await ctx.replyWithDocument({
-      source: templatePath,
-      filename: `Template_${procedure.name}.docx`,
+      source: tpl,
+      filename: `Template_${proc.name}.docx`,
     });
   } else {
     await ctx.reply(getMessage(ctx, "noTemplate"));
@@ -248,33 +204,50 @@ bot.action(/procedure_(.+)/, async (ctx) => {
 });
 
 bot.action(/back_to_procedures_(.+)/, (ctx) => {
-  const course = ctx.match[1];
+  const c = ctx.match[1];
   return ctx.editMessageText(
     getMessage(ctx, "selectProcedure"),
-    proceduresMenu(ctx, course)
+    proceduresMenu(ctx, c)
   );
 });
 
 bot.hears(/\/flowchart (.+)/, async (ctx) => {
-  const question = ctx.match[1];
+  const desc = ctx.match[1];
   await ctx.reply(getMessage(ctx, "generating"));
-  const answer = await queryLLMFlowchart(ctx, question);
-  await ctx.reply(answer);
+
+  const flow = await queryLLMFlowchart(ctx, desc);
+  if (!flow || !flow.mermaid) {
+    return ctx.reply(getMessage(ctx, "noLLMResponse"));
+  }
+
+  try {
+    const imgBuf = await fetchMermaidImageFromKroki(flow.mermaid, "png");
+    await ctx.replyWithPhoto(
+      { source: imgBuf },
+      {
+        caption: flow.sources
+          ? `Sources:\n• ${flow.sources.join("\n• ")}`
+          : undefined,
+      }
+    );
+  } catch (err) {
+    console.error("Kroki render error:", err);
+    await ctx.reply("```mermaid\n" + flow.mermaid + "\n```", {
+      parse_mode: "Markdown",
+    });
+  }
 });
 
 bot.on("text", async (ctx) => {
   const text = ctx.message.text;
-
   if (text.startsWith("/")) return;
-
   await ctx.reply(getMessage(ctx, "searching"));
-  const answer = await queryLLM(ctx, text);
-  await ctx.reply(answer);
+  const ans = await queryLLM(ctx, text);
+  await ctx.reply(ans);
 });
 
 bot.catch((err) => console.error("Bot error:", err));
 
-bot.launch().then(() => console.log("Bot started. Press Ctrl+C to stop."));
-
+bot.launch().then(() => console.log("Bot started"));
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));
