@@ -36,7 +36,7 @@ async function queryLLMFlowchart(ctx, description) {
     await checkAndClearSession(ctx);
 
     const sessionId = `telegram_${ctx.from.id}`;
-    const response = await axios.post(LLM_API_URL + "/api/teacher/flowchart", {
+    const response = await axios.post(LLM_API_URL + "/api/student/flowchart", {
       query: description,
       session_id: sessionId,
     });
@@ -55,9 +55,7 @@ async function checkAndClearSession(ctx) {
 
   if (now - lastCleared > 86400000) {
     try {
-      await axios.post(`${LLM_API_URL}/api/student/chat/clear`, {
-        session_id: sessionId,
-      });
+      await axios.get(`${LLM_API_URL}/api/student/chat/clear?session_id=${sessionId}`);
 
       sessionLastCleared[sessionId] = now;
       console.log(`Cleared session for user ${ctx.from.id}`);
@@ -171,10 +169,11 @@ bot.command("language", (ctx) => {
 
 bot.command("clear", async (ctx) => {
   const sessionId = `telegram_${ctx.from.id}`;
+
   try {
-    await axios.post(`${LLM_API_URL}/api/student/chat/clear`, {
-      session_id: sessionId,
-    });
+    await axios.get(
+      `${LLM_API_URL}/api/student/chat/clear?session_id=${sessionId}`
+    );
     sessionLastCleared[sessionId] = Date.now();
     await ctx.reply(
       getMessage(ctx, "historyCleared") || "Chat history cleared!"
