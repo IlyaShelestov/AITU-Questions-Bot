@@ -33,11 +33,11 @@ async function queryLLMFlowchart(ctx, description) {
   try {
     await checkAndClearSession(ctx);
     const sessionId = `telegram_${ctx.from.id}`;
-    const { data } = await axios.post(`${LLM_API_URL}/api/teacher/flowchart`, {
+    const { data } = await axios.post(`${LLM_API_URL}/api/student/flowchart`, {
       query: description,
       session_id: sessionId,
     });
-    return data; // { mermaid: "...", sources: [...] }
+    return data;
   } catch (e) {
     console.error("LLM API Error:", e);
     return null;
