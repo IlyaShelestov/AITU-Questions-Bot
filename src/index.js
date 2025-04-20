@@ -22,10 +22,10 @@ async function queryLLM(ctx, question) {
       query: question,
       session_id: sessionId,
     });
-    return data.answer;
+    return data;
   } catch (e) {
     console.error("LLM API Error:", e);
-    return getMessage(ctx, "noLLMResponse");
+    return { answer: getMessage(ctx, "noLLMResponse") };
   }
 }
 
@@ -224,12 +224,27 @@ bot.hears(/\/flowchart (.+)/, async (ctx) => {
     const imgBuf = await fetchMermaidImageFromKroki(flow.mermaid, "png");
     await ctx.replyWithPhoto(
       { source: imgBuf },
-      {
-        caption: flow.sources
-          ? `Sources:\n• ${flow.sources.join("\n• ")}`
-          : undefined,
-      }
+      { caption: flow.sources ? `Sources:` : undefined }
     );
+
+    if (flow.sources && flow.sources.length > 0) {
+      const filesDir = process.env.FILES_DIR;
+
+      for (const source of flow.sources) {
+        try {
+          const cleanFilename = source.replace(/^\d+-\d+-/, "");
+          const filePath = path.join(__dirname, filesDir, source);
+          if (fs.existsSync(filePath)) {
+            await ctx.replyWithDocument({
+              source: filePath,
+              filename: cleanFilename,
+            });
+          }
+        } catch (error) {
+          console.error(`Error sending file ${source}:`, error);
+        }
+      }
+    }
   } catch (err) {
     console.error("Kroki render error:", err);
     await ctx.reply("```mermaid\n" + flow.mermaid + "\n```", {
@@ -242,8 +257,28 @@ bot.on("text", async (ctx) => {
   const text = ctx.message.text;
   if (text.startsWith("/")) return;
   await ctx.reply(getMessage(ctx, "searching"));
-  const ans = await queryLLM(ctx, text);
-  await ctx.reply(ans);
+  const data = await queryLLM(ctx, text);
+  await ctx.reply(data.answer);
+
+  if (data.sources && data.sources.length > 0) {
+    const filesDir = process.env.FILES_DIR;
+
+    for (const source of data.sources) {
+      try {
+        const cleanFilename = source.replace(/^\d+-\d+-/, "");
+        const filePath = path.join(__dirname, filesDir, source);
+
+        if (fs.existsSync(filePath)) {
+          await ctx.replyWithDocument({
+            source: filePath,
+            filename: cleanFilename,
+          });
+        }
+      } catch (error) {
+        console.error(`Error sending file ${source}:`, error);
+      }
+    }
+  }
 });
 
 bot.catch((err) => console.error("Bot error:", err));
