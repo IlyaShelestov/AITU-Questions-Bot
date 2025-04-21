@@ -1,16 +1,13 @@
 require("dotenv").config();
-const { Telegraf, Markup, session } = require("telegraf");
+const { Telegraf, session } = require("telegraf");
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
-const procedures = require("./data/procedures.json");
-const courseProcedures = require("./data/course_procedures.json");
 const messages = require("./data/language.json");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.use(session());
 
-const clickCounts = {};
 const LLM_API_URL = process.env.LLM_API_URL || "http://localhost:5000";
 const sessionLastCleared = {};
 
@@ -76,64 +73,25 @@ function getMessage(ctx, key) {
   return messages[lang]?.[key] || messages["en"][key];
 }
 
-function hasFAQProcedures() {
-  return Object.values(clickCounts).some((c) => c > 2);
-}
-function getFAQProcedures() {
-  return Object.keys(clickCounts).filter((k) => clickCounts[k] > 2);
-}
-
-function courseMenu(ctx) {
-  const buttons = [
-    [Markup.button.callback(getMessage(ctx, "year_1"), "course_1")],
-    [Markup.button.callback(getMessage(ctx, "year_2"), "course_2")],
-    [Markup.button.callback(getMessage(ctx, "year_3"), "course_3")],
-  ];
-  if (hasFAQProcedures()) buttons.push([Markup.button.callback("FAQ", "faq")]);
-  return Markup.inlineKeyboard(buttons);
-}
-
-function proceduresMenu(ctx, course) {
-  const buttons = courseProcedures[course].map((p) => [
-    Markup.button.callback(procedures[p].name, `procedure_${p}`),
-  ]);
-  buttons.push([
-    Markup.button.callback(getMessage(ctx, "backToYears"), "back_to_years"),
-  ]);
-  return Markup.inlineKeyboard(buttons);
-}
-
-function faqMenu(ctx) {
-  const list = getFAQProcedures();
-  const buttons = list.length
-    ? list.map((p) => [
-        Markup.button.callback(procedures[p].name, `procedure_${p}`),
-      ])
-    : [[Markup.button.callback(getMessage(ctx, "noFAQ"), "no_faq")]];
-  buttons.push([
-    Markup.button.callback(getMessage(ctx, "backToYears"), "back_to_years"),
-  ]);
-  return Markup.inlineKeyboard(buttons);
-}
-
 bot.telegram.setMyCommands([
-  { command: "start", description: "Restart the bot" },
+  { command: "start", description: "Start the bot" },
   { command: "language", description: "Select language" },
   { command: "flowchart", description: "(message) Generate a flowchart" },
   { command: "clear", description: "Clear chat history" },
 ]);
 
-bot.start((ctx) => ctx.reply(getMessage(ctx, "welcome"), courseMenu(ctx)));
+bot.start((ctx) => ctx.reply(getMessage(ctx, "welcome")));
 
 bot.command("language", (ctx) =>
-  ctx.reply(
-    getMessage(ctx, "selectLanguage"),
-    Markup.inlineKeyboard([
-      [Markup.button.callback("🇬🇧 English", "lang_en")],
-      [Markup.button.callback("🇷🇺 Русский", "lang_ru")],
-      [Markup.button.callback("🇰🇿 Қазақша", "lang_kk")],
-    ])
-  )
+  ctx.reply(getMessage(ctx, "selectLanguage"), {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🇬🇧 English", callback_data: "lang_en" }],
+        [{ text: "🇷🇺 Русский", callback_data: "lang_ru" }],
+        [{ text: "🇰🇿 Қазақша", callback_data: "lang_kk" }],
+      ],
+    },
+  })
 );
 
 bot.command("clear", async (ctx) => {
@@ -143,7 +101,7 @@ bot.command("clear", async (ctx) => {
     sessionLastCleared[sid] = Date.now();
     await ctx.reply(getMessage(ctx, "historyCleared"));
   } catch {
-    await ctx.reply(getMessage(ctx, "errorClearingHistory"));
+    await ctx.reply("Error clearing history");
   }
 });
 
@@ -152,63 +110,6 @@ bot.action(/lang_(.+)/, (ctx) => {
   ctx.session = ctx.session || {};
   ctx.session.language = lang;
   return ctx.reply(getMessage(ctx, "setLanguage") + lang.toUpperCase());
-});
-
-bot.action("back_to_years", (ctx) =>
-  ctx.editMessageText(getMessage(ctx, "welcome"), courseMenu(ctx))
-);
-bot.action("faq", (ctx) =>
-  ctx.editMessageText(getMessage(ctx, "FAQ"), faqMenu(ctx))
-);
-bot.action("no_faq", (ctx) =>
-  ctx.editMessageText(getMessage(ctx, "noFAQYear"), courseMenu(ctx))
-);
-
-bot.action(/course_(.+)/, (ctx) => {
-  const c = ctx.match[1];
-  ctx.session = ctx.session || {};
-  ctx.session.selectedCourse = c;
-  return ctx.editMessageText(
-    getMessage(ctx, "selectProcedure"),
-    proceduresMenu(ctx, c)
-  );
-});
-
-bot.action(/procedure_(.+)/, async (ctx) => {
-  const key = ctx.match[1];
-  clickCounts[key] = (clickCounts[key] || 0) + 1;
-  const proc = procedures[key];
-  const course = ctx.session?.selectedCourse || "1";
-
-  await ctx.editMessageText(
-    `📝 ${proc.name}\n${proc.instruction}`,
-    Markup.inlineKeyboard([
-      [
-        Markup.button.callback(
-          getMessage(ctx, "backToProcedures"),
-          `back_to_procedures_${course}`
-        ),
-      ],
-    ])
-  );
-
-  const tpl = path.join(__dirname, proc.template);
-  if (fs.existsSync(tpl)) {
-    await ctx.replyWithDocument({
-      source: tpl,
-      filename: `Template_${proc.name}.docx`,
-    });
-  } else {
-    await ctx.reply(getMessage(ctx, "noTemplate"));
-  }
-});
-
-bot.action(/back_to_procedures_(.+)/, (ctx) => {
-  const c = ctx.match[1];
-  return ctx.editMessageText(
-    getMessage(ctx, "selectProcedure"),
-    proceduresMenu(ctx, c)
-  );
 });
 
 bot.hears(/\/flowchart (.+)/, async (ctx) => {
@@ -224,16 +125,17 @@ bot.hears(/\/flowchart (.+)/, async (ctx) => {
     const imgBuf = await fetchMermaidImageFromKroki(flow.mermaid, "png");
     await ctx.replyWithPhoto(
       { source: imgBuf },
-      { caption: flow.sources ? `Sources:` : undefined }
+      { caption: flow.sources?.length > 0 ? `Sources:` : undefined }
     );
 
     if (flow.sources && flow.sources.length > 0) {
-      const filesDir = process.env.FILES_DIR;
+      const filesDir = process.env.FILES_DIR || "../../RAG_AITU/data_stud";
 
       for (const source of flow.sources) {
         try {
           const cleanFilename = source.replace(/^\d+-\d+-/, "");
           const filePath = path.join(__dirname, filesDir, source);
+
           if (fs.existsSync(filePath)) {
             await ctx.replyWithDocument({
               source: filePath,
@@ -261,7 +163,7 @@ bot.on("text", async (ctx) => {
   await ctx.reply(data.answer);
 
   if (data.sources && data.sources.length > 0) {
-    const filesDir = process.env.FILES_DIR;
+    const filesDir = process.env.FILES_DIR || "../../RAG_AITU/data_stud";
 
     for (const source of data.sources) {
       try {
