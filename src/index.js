@@ -165,7 +165,7 @@ bot.on("text", async (ctx) => {
   if (text.startsWith("/")) return;
   await ctx.reply(getMessage(ctx, "searching"));
   const data = await queryLLM(ctx, text);
-  await ctx.reply(data.answer);
+  await ctx.reply(data.answer, { parse_mode: "Markdown" });
 
   if (data.sources && data.sources.length > 0) {
     const filesDir = process.env.FILES_DIR || "../../RAG_AITU/data_stud";
