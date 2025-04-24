@@ -6,7 +6,8 @@
     "noLLMResponse": "Sorry, I couldn't process your request at the moment. Please try again later.",
     "selectLanguage": "Choose language:",
     "setLanguage": "Language set to: ",
-    "historyCleared": "History cleared successfully."
+    "historyCleared": "History cleared successfully.",
+    "feedback": "Please share your feedback using this form: https://forms.gle/KRRbtNQA8PCk8decA"
   },
   "ru": {
     "welcome": "Добро пожаловать! Задайте мне любой вопрос или используйте /flowchart для генерации блок-схемы.",
@@ -15,7 +16,8 @@
     "noLLMResponse": "Извините, я не смог обработать ваш запрос в данный момент. Пожалуйста, попробуйте позже.",
     "selectLanguage": "Выберите язык:",
     "setLanguage": "Язык установлен на: ",
-    "historyCleared": "История успешно очищена."
+    "historyCleared": "История успешно очищена.",
+    "feedback": "Пожалуйста, поделитесь своим отзывом, используя эту форму: https://forms.gle/KRRbtNQA8PCk8decA"
   },
   "kk": {
     "welcome": "Қош келдіңіз! Маған кез келген сұрақ қойыңыз немесе блок-схема жасау үшін /flowchart командасын пайдаланыңыз.",
@@ -24,6 +26,7 @@
     "noLLMResponse": "Кешіріңіз, мен сіздің сұрауыңызды қазіргі уақытта өңдей алмадым. Кейінірек қайтадан көріңіз.",
     "selectLanguage": "Тілді таңдаңыз:",
     "setLanguage": "Тіл орнатылды: ",
-    "historyCleared": "Тарих сәтті тазартылды."
+    "historyCleared": "Тарих сәтті тазартылды.",
+    "feedback": "Осы форманы қолданып пікіріңізді бөлісіңіз: https://forms.gle/KRRbtNQA8PCk8decA"
   }
 }

@@ -78,6 +78,7 @@ bot.telegram.setMyCommands([
   { command: "language", description: "Select language" },
   { command: "flowchart", description: "(message) Generate a flowchart" },
   { command: "clear", description: "Clear chat history" },
+  { command: "feedback", description: "Send feedback" },
 ]);
 
 bot.start((ctx) => ctx.reply(getMessage(ctx, "welcome")));
@@ -103,6 +104,10 @@ bot.command("clear", async (ctx) => {
   } catch {
     await ctx.reply("Error clearing history");
   }
+});
+
+bot.command("feedback", (ctx) => {
+  return ctx.reply(getMessage(ctx, "feedback"));
 });
 
 bot.action(/lang_(.+)/, (ctx) => {
