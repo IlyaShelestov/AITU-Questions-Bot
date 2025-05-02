@@ -1,6 +1,6 @@
 require("dotenv").config();
 const { Telegraf, session } = require("telegraf");
-// const axios = require("axios");
+const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 const express = require("express");
@@ -112,37 +112,37 @@ bot.command("feedback", (ctx) => {
   return ctx.reply(getMessage(ctx, "feedback"));
 });
 
-// bot.command("request", (ctx) => {
-//   const text = ctx.message.text.replace("/request", "").trim();
+bot.command("request", (ctx) => {
+  const text = ctx.message.text.replace("/request", "").trim();
 
-//   if (!text) {
-//     return ctx.reply(
-//       "Please provide a message with your request: /request your message here"
-//     );
-//   }
+  if (!text) {
+    return ctx.reply(
+      "Please provide a message with your request: /request your message here"
+    );
+  }
 
-//   const { id: telegramId } = ctx.from;
-//   const userName =
-//     ctx.from.first_name + (ctx.from.last_name ? ` ${ctx.from.last_name}` : "");
+  const { id: telegramId } = ctx.from;
+  const userName =
+    ctx.from.first_name + (ctx.from.last_name ? ` ${ctx.from.last_name}` : "");
 
-//   axios
-//     .post(`${process.env.WEBSITE_API_URL}/requests/api/submit`, {
-//       telegramId: telegramId.toString(),
-//       userName,
-//       message: text,
-//     })
-//     .then(() => {
-//       ctx.reply(
-//         "Your request has been submitted successfully. Staff will review it shortly."
-//       );
-//     })
-//     .catch((error) => {
-//       console.error("Error submitting request:", error);
-//       ctx.reply(
-//         "Sorry, there was an error submitting your request. Please try again later."
-//       );
-//     });
-// });
+  axios
+    .post(`${process.env.WEBSITE_API_URL}/requests/api/submit`, {
+      telegramId: telegramId.toString(),
+      userName,
+      message: text,
+    })
+    .then(() => {
+      ctx.reply(
+        "Your request has been submitted successfully. Staff will review it shortly."
+      );
+    })
+    .catch((error) => {
+      console.error("Error submitting request:", error);
+      ctx.reply(
+        "Sorry, there was an error submitting your request. Please try again later."
+      );
+    });
+});
 
 bot.action(/lang_(.+)/, (ctx) => {
   const lang = ctx.match[1];
@@ -224,48 +224,48 @@ bot.on("text", async (ctx) => {
 
 bot.catch((err) => console.error("Bot error:", err));
 
-//const app = express();
-//app.use(express.json());
+const app = express();
+app.use(express.json());
 
-// app.post("/notify", async (req, res) => {
-//   const { telegramId, message } = req.body;
+app.post("/notify", async (req, res) => {
+  const { telegramId, message } = req.body;
 
-//   if (!telegramId || !message) {
-//     return res.status(400).json({ error: "Missing required fields" });
-//   }
+  if (!telegramId || !message) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
 
-//   try {
-//     await bot.telegram.sendMessage(telegramId, message);
-//     res.status(200).json({ success: true });
-//   } catch (error) {
-//     console.error("Error sending notification:", error);
-//     res.status(500).json({ error: "Failed to send notification" });
-//   }
-// });
+  try {
+    await bot.telegram.sendMessage(telegramId, message);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Error sending notification:", error);
+    res.status(500).json({ error: "Failed to send notification" });
+  }
+});
 
-// app.post("/send-answer", async (req, res) => {
-//   const { telegramId, message } = req.body;
+app.post("/send-answer", async (req, res) => {
+  const { telegramId, message } = req.body;
 
-//   if (!telegramId || !message) {
-//     return res.status(400).json({ error: "Missing required fields" });
-//   }
+  if (!telegramId || !message) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
 
-//   try {
-//     await bot.telegram.sendMessage(
-//       telegramId,
-//       `📬 *Staff Response*\n\n${message}`,
-//       { parse_mode: "Markdown" }
-//     );
-//     res.status(200).json({ success: true });
-//   } catch (error) {
-//     console.error("Error sending answer:", error);
-//     res.status(500).json({ error: "Failed to send answer" });
-//   }
-// });
+  try {
+    await bot.telegram.sendMessage(
+      telegramId,
+      `📬 *Staff Response*\n\n${message}`,
+      { parse_mode: "Markdown" }
+    );
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Error sending answer:", error);
+    res.status(500).json({ error: "Failed to send answer" });
+  }
+});
 
-// app.listen(process.env.BOT_API_PORT || 3001, () => {
-//   console.log(`Bot API listening on port ${process.env.BOT_API_PORT || 3001}`);
-// });
+app.listen(process.env.BOT_API_PORT || 3001, () => {
+  console.log(`Bot API listening on port ${process.env.BOT_API_PORT || 3001}`);
+});
 
 bot
   .launch()
