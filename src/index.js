@@ -224,48 +224,48 @@ bot.on("text", async (ctx) => {
 
 bot.catch((err) => console.error("Bot error:", err));
 
-const app = express();
-app.use(express.json());
+//const app = express();
+//app.use(express.json());
 
-app.post("/notify", async (req, res) => {
-  const { telegramId, message } = req.body;
+// app.post("/notify", async (req, res) => {
+//   const { telegramId, message } = req.body;
 
-  if (!telegramId || !message) {
-    return res.status(400).json({ error: "Missing required fields" });
-  }
+//   if (!telegramId || !message) {
+//     return res.status(400).json({ error: "Missing required fields" });
+//   }
 
-  try {
-    await bot.telegram.sendMessage(telegramId, message);
-    res.status(200).json({ success: true });
-  } catch (error) {
-    console.error("Error sending notification:", error);
-    res.status(500).json({ error: "Failed to send notification" });
-  }
-});
+//   try {
+//     await bot.telegram.sendMessage(telegramId, message);
+//     res.status(200).json({ success: true });
+//   } catch (error) {
+//     console.error("Error sending notification:", error);
+//     res.status(500).json({ error: "Failed to send notification" });
+//   }
+// });
 
-app.post("/send-answer", async (req, res) => {
-  const { telegramId, message } = req.body;
+// app.post("/send-answer", async (req, res) => {
+//   const { telegramId, message } = req.body;
 
-  if (!telegramId || !message) {
-    return res.status(400).json({ error: "Missing required fields" });
-  }
+//   if (!telegramId || !message) {
+//     return res.status(400).json({ error: "Missing required fields" });
+//   }
 
-  try {
-    await bot.telegram.sendMessage(
-      telegramId,
-      `📬 *Staff Response*\n\n${message}`,
-      { parse_mode: "Markdown" }
-    );
-    res.status(200).json({ success: true });
-  } catch (error) {
-    console.error("Error sending answer:", error);
-    res.status(500).json({ error: "Failed to send answer" });
-  }
-});
+//   try {
+//     await bot.telegram.sendMessage(
+//       telegramId,
+//       `📬 *Staff Response*\n\n${message}`,
+//       { parse_mode: "Markdown" }
+//     );
+//     res.status(200).json({ success: true });
+//   } catch (error) {
+//     console.error("Error sending answer:", error);
+//     res.status(500).json({ error: "Failed to send answer" });
+//   }
+// });
 
-app.listen(process.env.BOT_API_PORT || 3001, () => {
-  console.log(`Bot API listening on port ${process.env.BOT_API_PORT || 3001}`);
-});
+// app.listen(process.env.BOT_API_PORT || 3001, () => {
+//   console.log(`Bot API listening on port ${process.env.BOT_API_PORT || 3001}`);
+// });
 
 bot
   .launch()
