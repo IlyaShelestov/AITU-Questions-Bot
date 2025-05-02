@@ -1,6 +1,6 @@
 require("dotenv").config();
 const { Telegraf, session } = require("telegraf");
-const axios = require("axios");
+// const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 const express = require("express");
@@ -112,37 +112,37 @@ bot.command("feedback", (ctx) => {
   return ctx.reply(getMessage(ctx, "feedback"));
 });
 
-bot.command("request", (ctx) => {
-  const text = ctx.message.text.replace("/request", "").trim();
+// bot.command("request", (ctx) => {
+//   const text = ctx.message.text.replace("/request", "").trim();
 
-  if (!text) {
-    return ctx.reply(
-      "Please provide a message with your request: /request your message here"
-    );
-  }
+//   if (!text) {
+//     return ctx.reply(
+//       "Please provide a message with your request: /request your message here"
+//     );
+//   }
 
-  const { id: telegramId } = ctx.from;
-  const userName =
-    ctx.from.first_name + (ctx.from.last_name ? ` ${ctx.from.last_name}` : "");
+//   const { id: telegramId } = ctx.from;
+//   const userName =
+//     ctx.from.first_name + (ctx.from.last_name ? ` ${ctx.from.last_name}` : "");
 
-  axios
-    .post(`${process.env.WEBSITE_API_URL}/requests/api/submit`, {
-      telegramId: telegramId.toString(),
-      userName,
-      message: text,
-    })
-    .then(() => {
-      ctx.reply(
-        "Your request has been submitted successfully. Staff will review it shortly."
-      );
-    })
-    .catch((error) => {
-      console.error("Error submitting request:", error);
-      ctx.reply(
-        "Sorry, there was an error submitting your request. Please try again later."
-      );
-    });
-});
+//   axios
+//     .post(`${process.env.WEBSITE_API_URL}/requests/api/submit`, {
+//       telegramId: telegramId.toString(),
+//       userName,
+//       message: text,
+//     })
+//     .then(() => {
+//       ctx.reply(
+//         "Your request has been submitted successfully. Staff will review it shortly."
+//       );
+//     })
+//     .catch((error) => {
+//       console.error("Error submitting request:", error);
+//       ctx.reply(
+//         "Sorry, there was an error submitting your request. Please try again later."
+//       );
+//     });
+// });
 
 bot.action(/lang_(.+)/, (ctx) => {
   const lang = ctx.match[1];
