@@ -11,6 +11,20 @@ bot.use(session());
 
 const LLM_API_URL = process.env.LLM_API_URL || "http://localhost:5000";
 const sessionLastCleared = {};
+const userRateLimits = {};
+
+function checkRateLimit(ctx) {
+  const uid = ctx.from.id;
+  const now = Date.now();
+  if (!userRateLimits[uid]) userRateLimits[uid] = [];
+  userRateLimits[uid] = userRateLimits[uid].filter(ts => now - ts < 60000);
+  if (userRateLimits[uid].length >= 5) {
+    ctx.reply("📛 Rate limit exceeded: max 5 requests per minute. Please wait.");
+    return false;
+  }
+  userRateLimits[uid].push(now);
+  return true;
+}
 
 async function queryLLM(ctx, question) {
   try {
@@ -152,6 +166,8 @@ bot.action(/lang_(.+)/, (ctx) => {
 });
 
 bot.hears(/\/flowchart (.+)/, async (ctx) => {
+  if (!checkRateLimit(ctx)) return;
+
   const desc = ctx.match[1];
   await ctx.reply(getMessage(ctx, "generating"));
 
@@ -195,6 +211,8 @@ bot.hears(/\/flowchart (.+)/, async (ctx) => {
 });
 
 bot.on("text", async (ctx) => {
+  if (!checkRateLimit(ctx)) return;
+
   const text = ctx.message.text;
   if (text.startsWith("/")) return;
   await ctx.reply(getMessage(ctx, "searching"));
