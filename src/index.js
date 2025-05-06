@@ -17,9 +17,9 @@ function checkRateLimit(ctx) {
   const uid = ctx.from.id;
   const now = Date.now();
   if (!userRateLimits[uid]) userRateLimits[uid] = [];
-  userRateLimits[uid] = userRateLimits[uid].filter(ts => now - ts < 60000);
+  userRateLimits[uid] = userRateLimits[uid].filter((ts) => now - ts < 60000);
   if (userRateLimits[uid].length >= 5) {
-    ctx.reply("📛 Rate limit exceeded: max 5 requests per minute. Please wait.");
+    ctx.reply(getMessage(ctx, "limit"));
     return false;
   }
   userRateLimits[uid].push(now);
