@@ -281,7 +281,7 @@ app.post("/send-answer", async (req, res) => {
   }
 });
 
-app.listen(process.env.BOT_API_PORT || 3001, () => {
+const server = app.listen(process.env.BOT_API_PORT || 3001, () => {
   console.log(`Bot API listening on port ${process.env.BOT_API_PORT || 3001}`);
 });
 
@@ -294,5 +294,11 @@ bot
     console.error("Error starting bot:", error);
   });
 
-process.once("SIGINT", () => bot.stop("SIGINT"));
-process.once("SIGTERM", () => bot.stop("SIGTERM"));
+process.once("SIGINT", () => {
+  server.close();
+  bot.stop();
+});
+process.once("SIGTERM", () => {
+  server.close();
+  bot.stop();
+});
