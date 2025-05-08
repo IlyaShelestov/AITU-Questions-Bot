@@ -1,29 +1,35 @@
 {
   "en": {
     "welcome": "Welcome! Ask me any question or use /flowchart to generate a flowchart.",
-    "searching": "🔍 Searching for the answer...",
+    "searching": "Thinking...",
     "generating": "Generating flowchart...",
     "noLLMResponse": "Sorry, I couldn't process your request at the moment. Please try again later.",
     "selectLanguage": "Choose language:",
     "setLanguage": "Language set to: ",
-    "historyCleared": "History cleared successfully."
+    "historyCleared": "History cleared successfully.",
+    "feedback": "Please share your feedback using this form: https://forms.gle/KRRbtNQA8PCk8decA",
+    "limit": "📛 Rate limit exceeded: max 5 requests per minute. Please wait."
   },
   "ru": {
     "welcome": "Добро пожаловать! Задайте мне любой вопрос или используйте /flowchart для генерации блок-схемы.",
-    "searching": "🔍 Ищу ответ...",
+    "searching": "Думаю...",
     "generating": "Генерирую блок-схему...",
     "noLLMResponse": "Извините, я не смог обработать ваш запрос в данный момент. Пожалуйста, попробуйте позже.",
     "selectLanguage": "Выберите язык:",
     "setLanguage": "Язык установлен на: ",
-    "historyCleared": "История успешно очищена."
+    "historyCleared": "История успешно очищена.",
+    "feedback": "Пожалуйста, поделитесь своим отзывом, используя эту форму: https://forms.gle/KRRbtNQA8PCk8decA",
+    "limit": "📛 Превышен лимит запросов: максимум 5 запросов в минуту. Пожалуйста, подождите."
   },
   "kk": {
     "welcome": "Қош келдіңіз! Маған кез келген сұрақ қойыңыз немесе блок-схема жасау үшін /flowchart командасын пайдаланыңыз.",
-    "searching": "🔍 Жауап ізделуде...",
+    "searching": "Ойлануда...",
     "generating": "Блок-схема жасалуда...",
     "noLLMResponse": "Кешіріңіз, мен сіздің сұрауыңызды қазіргі уақытта өңдей алмадым. Кейінірек қайтадан көріңіз.",
     "selectLanguage": "Тілді таңдаңыз:",
     "setLanguage": "Тіл орнатылды: ",
-    "historyCleared": "Тарих сәтті тазартылды."
+    "historyCleared": "Тарих сәтті тазартылды.",
+    "feedback": "Осы форманы қолданып пікіріңізді бөлісіңіз: https://forms.gle/KRRbtNQA8PCk8decA",
+    "limit": "📛 Сұрау лимиті асып кетті: минутына максимум 5 сұрау. Күтіңіз."
   }
 }

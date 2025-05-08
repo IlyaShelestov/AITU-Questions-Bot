@@ -3,6 +3,7 @@ const { Telegraf, session } = require("telegraf");
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
+const express = require("express");
 const messages = require("./data/language.json");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
@@ -10,6 +11,20 @@ bot.use(session());
 
 const LLM_API_URL = process.env.LLM_API_URL || "http://localhost:5000";
 const sessionLastCleared = {};
+const userRateLimits = {};
+
+function checkRateLimit(ctx) {
+  const uid = ctx.from.id;
+  const now = Date.now();
+  if (!userRateLimits[uid]) userRateLimits[uid] = [];
+  userRateLimits[uid] = userRateLimits[uid].filter((ts) => now - ts < 60000);
+  if (userRateLimits[uid].length >= 5) {
+    ctx.reply(getMessage(ctx, "limit"));
+    return false;
+  }
+  userRateLimits[uid].push(now);
+  return true;
+}
 
 async function queryLLM(ctx, question) {
   try {
@@ -77,7 +92,9 @@ bot.telegram.setMyCommands([
   { command: "start", description: "Start the bot" },
   { command: "language", description: "Select language" },
   { command: "flowchart", description: "(message) Generate a flowchart" },
+  { command: "request", description: "Send a request to university staff" },
   { command: "clear", description: "Clear chat history" },
+  { command: "feedback", description: "Send feedback" },
 ]);
 
 bot.start((ctx) => ctx.reply(getMessage(ctx, "welcome")));
@@ -105,6 +122,42 @@ bot.command("clear", async (ctx) => {
   }
 });
 
+bot.command("feedback", (ctx) => {
+  return ctx.reply(getMessage(ctx, "feedback"));
+});
+
+bot.command("request", (ctx) => {
+  const text = ctx.message.text.replace("/request", "").trim();
+
+  if (!text) {
+    return ctx.reply(
+      "Please provide a message with your request: /request your message here"
+    );
+  }
+
+  const { id: telegramId } = ctx.from;
+  const userName =
+    ctx.from.first_name + (ctx.from.last_name ? ` ${ctx.from.last_name}` : "");
+
+  axios
+    .post(`${process.env.WEBSITE_API_URL}/requests/api/submit`, {
+      telegramId: telegramId.toString(),
+      userName,
+      message: text,
+    })
+    .then(() => {
+      ctx.reply(
+        "Your request has been submitted successfully. Staff will review it shortly."
+      );
+    })
+    .catch((error) => {
+      console.error("Error submitting request:", error);
+      ctx.reply(
+        "Sorry, there was an error submitting your request. Please try again later."
+      );
+    });
+});
+
 bot.action(/lang_(.+)/, (ctx) => {
   const lang = ctx.match[1];
   ctx.session = ctx.session || {};
@@ -113,6 +166,8 @@ bot.action(/lang_(.+)/, (ctx) => {
 });
 
 bot.hears(/\/flowchart (.+)/, async (ctx) => {
+  if (!checkRateLimit(ctx)) return;
+
   const desc = ctx.match[1];
   await ctx.reply(getMessage(ctx, "generating"));
 
@@ -156,14 +211,21 @@ bot.hears(/\/flowchart (.+)/, async (ctx) => {
 });
 
 bot.on("text", async (ctx) => {
+  if (!checkRateLimit(ctx)) return;
+
   const text = ctx.message.text;
   if (text.startsWith("/")) return;
   await ctx.reply(getMessage(ctx, "searching"));
   const data = await queryLLM(ctx, text);
+<<<<<<< HEAD
   //await ctx.reply(data.answer);
   await ctx.reply(data.answer, {
     parse_mode: "Markdown"  // или "MarkdownV2" при необходимости более строгого синтаксиса
   });
+=======
+  await ctx.reply(data.answer, { parse_mode: "Markdown" });
+
+>>>>>>> 66721440f498ee9466a77ebb7fffc7707920a378
   if (data.sources && data.sources.length > 0) {
     const filesDir = process.env.FILES_DIR || "../../RAG_AITU/data_stud";
 
@@ -187,6 +249,63 @@ bot.on("text", async (ctx) => {
 
 bot.catch((err) => console.error("Bot error:", err));
 
-bot.launch().then(() => console.log("Bot started"));
-process.once("SIGINT", () => bot.stop("SIGINT"));
-process.once("SIGTERM", () => bot.stop("SIGTERM"));
+const app = express();
+app.use(express.json());
+
+app.post("/notify", async (req, res) => {
+  const { telegramId, message } = req.body;
+
+  if (!telegramId || !message) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  try {
+    await bot.telegram.sendMessage(telegramId, message);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Error sending notification:", error);
+    res.status(500).json({ error: "Failed to send notification" });
+  }
+});
+
+app.post("/send-answer", async (req, res) => {
+  const { telegramId, message } = req.body;
+
+  if (!telegramId || !message) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  try {
+    await bot.telegram.sendMessage(
+      telegramId,
+      `📬 *Staff Response*\n\n${message}`,
+      { parse_mode: "Markdown" }
+    );
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Error sending answer:", error);
+    res.status(500).json({ error: "Failed to send answer" });
+  }
+});
+
+const server = app.listen(process.env.BOT_API_PORT || 3001, () => {
+  console.log(`Bot API listening on port ${process.env.BOT_API_PORT || 3001}`);
+});
+
+bot
+  .launch()
+  .then(() => {
+    console.log("Bot started");
+  })
+  .catch((error) => {
+    console.error("Error starting bot:", error);
+  });
+
+process.once("SIGINT", () => {
+  server.close();
+  bot.stop();
+});
+process.once("SIGTERM", () => {
+  server.close();
+  bot.stop();
+});
