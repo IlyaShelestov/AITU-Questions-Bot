@@ -5,6 +5,8 @@ const fs = require("fs");
 const path = require("path");
 const express = require("express");
 const messages = require("./data/language.json");
+const FormData = require("form-data");
+const mammoth = require("mammoth");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.use(session());
@@ -217,15 +219,10 @@ bot.on("text", async (ctx) => {
   if (text.startsWith("/")) return;
   await ctx.reply(getMessage(ctx, "searching"));
   const data = await queryLLM(ctx, text);
-<<<<<<< HEAD
-  //await ctx.reply(data.answer);
-  await ctx.reply(data.answer, {
-    parse_mode: "Markdown"  // или "MarkdownV2" при необходимости более строгого синтаксиса
-  });
-=======
+
   await ctx.reply(data.answer, { parse_mode: "Markdown" });
 
->>>>>>> 66721440f498ee9466a77ebb7fffc7707920a378
+
   if (data.sources && data.sources.length > 0) {
     const filesDir = process.env.FILES_DIR || "../../RAG_AITU/data_stud";
 
@@ -244,6 +241,58 @@ bot.on("text", async (ctx) => {
         console.error(`Error sending file ${source}:`, error);
       }
     }
+  }
+});
+
+bot.on(["document", "photo"], async (ctx) => {
+  if (!checkRateLimit(ctx)) return;
+  await ctx.reply(getMessage(ctx, "analyzingFile") || "Analyzing your file...");
+  let fileId, fileName;
+  if (ctx.message.document) {
+    fileId = ctx.message.document.file_id;
+    fileName = ctx.message.document.file_name || "uploaded_file";
+  } else if (ctx.message.photo) {
+    const photo = ctx.message.photo[ctx.message.photo.length - 1];
+    fileId = photo.file_id;
+    fileName = "photo.jpg";
+  }
+  try {
+    const fileLink = await ctx.telegram.getFileLink(fileId);
+    const response = await axios.get(fileLink.href, { responseType: "arraybuffer" });
+    const ext = path.extname(fileName).toLowerCase();
+    const formData = new FormData();
+    if (ext === ".docx") {
+      // Send the file as 'file', not as extracted text.
+      formData.append("file", Buffer.from(response.data), fileName);
+      const prompt = ctx.message.caption ? ctx.message.caption.trim() : "Analyze this file";
+      formData.append("question", prompt);
+    } else if ([".jpg", ".jpeg", ".png", ".gif"].includes(ext)) {
+      // Process images as before—using OCR.
+      formData.append("file", Buffer.from(response.data), fileName);
+      const prompt = ctx.message.caption ? ctx.message.caption.trim() : "Analyze this file";
+      formData.append("question", prompt);
+    } else if ([".txt", ".pdf"].includes(ext)) {
+      // Process other supported file types.
+      formData.append("file", Buffer.from(response.data), fileName);
+      const prompt = ctx.message.caption ? ctx.message.caption.trim() : "Analyze this file";
+      formData.append("question", prompt);
+    } else {
+      await ctx.reply("File format not supported.");
+      return;
+    }
+    const apiRes = await axios.post(
+      `${LLM_API_URL}/api/student/docs/analyze`,
+      formData,
+      { headers: formData.getHeaders() }
+    );
+    if (apiRes.data && apiRes.data.answer) {
+      await ctx.reply(apiRes.data.answer, { parse_mode: "Markdown" });
+    } else {
+      await ctx.reply(getMessage(ctx, "noLLMResponse") || "Sorry, I couldn't analyze your file.");
+    }
+  } catch (e) {
+    console.error("File analysis error:", e);
+    await ctx.reply(getMessage(ctx, "noLLMResponse") || "Sorry, I couldn't analyze your file.");
   }
 });
 
