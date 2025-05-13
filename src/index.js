@@ -6,7 +6,6 @@ const path = require("path");
 const express = require("express");
 const messages = require("./data/language.json");
 const FormData = require("form-data");
-const mammoth = require("mammoth");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.use(session());
@@ -222,7 +221,6 @@ bot.on("text", async (ctx) => {
 
   await ctx.reply(data.answer, { parse_mode: "Markdown" });
 
-
   if (data.sources && data.sources.length > 0) {
     const filesDir = process.env.FILES_DIR || "../../RAG_AITU/data_stud";
 
@@ -258,23 +256,28 @@ bot.on(["document", "photo"], async (ctx) => {
   }
   try {
     const fileLink = await ctx.telegram.getFileLink(fileId);
-    const response = await axios.get(fileLink.href, { responseType: "arraybuffer" });
+    const response = await axios.get(fileLink.href, {
+      responseType: "arraybuffer",
+    });
     const ext = path.extname(fileName).toLowerCase();
     const formData = new FormData();
     if (ext === ".docx") {
-      // Send the file as 'file', not as extracted text.
       formData.append("file", Buffer.from(response.data), fileName);
-      const prompt = ctx.message.caption ? ctx.message.caption.trim() : "Analyze this file";
+      const prompt = ctx.message.caption
+        ? ctx.message.caption.trim()
+        : "Analyze this file";
       formData.append("question", prompt);
     } else if ([".jpg", ".jpeg", ".png", ".gif"].includes(ext)) {
-      // Process images as before—using OCR.
       formData.append("file", Buffer.from(response.data), fileName);
-      const prompt = ctx.message.caption ? ctx.message.caption.trim() : "Analyze this file";
+      const prompt = ctx.message.caption
+        ? ctx.message.caption.trim()
+        : "Analyze this file";
       formData.append("question", prompt);
     } else if ([".txt", ".pdf"].includes(ext)) {
-      // Process other supported file types.
       formData.append("file", Buffer.from(response.data), fileName);
-      const prompt = ctx.message.caption ? ctx.message.caption.trim() : "Analyze this file";
+      const prompt = ctx.message.caption
+        ? ctx.message.caption.trim()
+        : "Analyze this file";
       formData.append("question", prompt);
     } else {
       await ctx.reply("File format not supported.");
@@ -288,11 +291,16 @@ bot.on(["document", "photo"], async (ctx) => {
     if (apiRes.data && apiRes.data.answer) {
       await ctx.reply(apiRes.data.answer, { parse_mode: "Markdown" });
     } else {
-      await ctx.reply(getMessage(ctx, "noLLMResponse") || "Sorry, I couldn't analyze your file.");
+      await ctx.reply(
+        getMessage(ctx, "noLLMResponse") ||
+          "Sorry, I couldn't analyze your file."
+      );
     }
   } catch (e) {
     console.error("File analysis error:", e);
-    await ctx.reply(getMessage(ctx, "noLLMResponse") || "Sorry, I couldn't analyze your file.");
+    await ctx.reply(
+      getMessage(ctx, "noLLMResponse") || "Sorry, I couldn't analyze your file."
+    );
   }
 });
 
