@@ -12,7 +12,7 @@ RUN npm install
 COPY . .
 
 # Порт для метрик
-EXPOSE 9101
+EXPOSE 3001
 
 # Запуск бота
 CMD ["node", "src/index.js"]

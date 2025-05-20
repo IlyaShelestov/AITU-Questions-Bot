@@ -6,9 +6,17 @@ const path = require("path");
 const express = require("express");
 const messages = require("./data/language.json");
 const FormData = require("form-data");
+const metrics = require('./metrics');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.use(session());
+
+bot.use((ctx, next) => {
+  if (ctx.from && ctx.from.id) {
+    metrics.userSet.add(ctx.from.id);
+  }
+  return next();
+});
 
 const LLM_API_URL = process.env.LLM_API_URL || "http://localhost:5000";
 const sessionLastCleared = {};
@@ -21,6 +29,7 @@ function checkRateLimit(ctx) {
   userRateLimits[uid] = userRateLimits[uid].filter((ts) => now - ts < 60000);
   if (userRateLimits[uid].length >= 5) {
     ctx.reply(getMessage(ctx, "limit"));
+    metrics.rateLimitCounter.inc();
     return false;
   }
   userRateLimits[uid].push(now);
@@ -31,12 +40,15 @@ async function queryLLM(ctx, question) {
   try {
     await checkAndClearSession(ctx);
     const sessionId = `telegram_${ctx.from.id}`;
+    metrics.apiCallCounter.inc({ endpoint: 'chat', status: 'attempt' });
     const { data } = await axios.post(`${LLM_API_URL}/api/student/chat`, {
       query: question,
       session_id: sessionId,
     });
+    metrics.apiCallCounter.inc({ endpoint: 'chat', status: 'success' });
     return data;
   } catch (e) {
+    metrics.apiCallCounter.inc({ endpoint: 'chat', status: 'failure' });
     console.error("LLM API Error:", e);
     return { answer: getMessage(ctx, "noLLMResponse") };
   }
@@ -46,12 +58,15 @@ async function queryLLMFlowchart(ctx, description) {
   try {
     await checkAndClearSession(ctx);
     const sessionId = `telegram_${ctx.from.id}`;
+    metrics.apiCallCounter.inc({ endpoint: 'flowchart', status: 'attempt' });
     const { data } = await axios.post(`${LLM_API_URL}/api/student/flowchart`, {
       query: description,
       session_id: sessionId,
     });
+    metrics.apiCallCounter.inc({ endpoint: 'flowchart', status: 'success' });
     return data;
   } catch (e) {
+    metrics.apiCallCounter.inc({ endpoint: 'flowchart', status: 'failure' });
     console.error("LLM API Error:", e);
     return null;
   }
@@ -98,10 +113,14 @@ bot.telegram.setMyCommands([
   { command: "feedback", description: "Send feedback" },
 ]);
 
-bot.start((ctx) => ctx.reply(getMessage(ctx, "welcome")));
+bot.start((ctx) => {
+  metrics.commandCounter.inc({ command: 'start' });
+  return ctx.reply(getMessage(ctx, "welcome"));
+});
 
-bot.command("language", (ctx) =>
-  ctx.reply(getMessage(ctx, "selectLanguage"), {
+bot.command("language", (ctx) => {
+  metrics.commandCounter.inc({ command: 'language' });
+  return ctx.reply(getMessage(ctx, "selectLanguage"), {
     reply_markup: {
       inline_keyboard: [
         [{ text: "🇬🇧 English", callback_data: "lang_en" }],
@@ -109,10 +128,11 @@ bot.command("language", (ctx) =>
         [{ text: "🇰🇿 Қазақша", callback_data: "lang_kk" }],
       ],
     },
-  })
-);
+  });
+});
 
 bot.command("clear", async (ctx) => {
+  metrics.commandCounter.inc({ command: 'clear' });
   const sid = `telegram_${ctx.from.id}`;
   try {
     await axios.get(`${LLM_API_URL}/api/student/chat/clear?session_id=${sid}`);
@@ -124,10 +144,12 @@ bot.command("clear", async (ctx) => {
 });
 
 bot.command("feedback", (ctx) => {
+  metrics.commandCounter.inc({ command: 'feedback' });
   return ctx.reply(getMessage(ctx, "feedback"));
 });
 
 bot.command("request", (ctx) => {
+  metrics.commandCounter.inc({ command: 'request' });
   const text = ctx.message.text.replace("/request", "").trim();
 
   if (!text) {
@@ -159,6 +181,7 @@ bot.command("request", (ctx) => {
     });
 });
 
+
 bot.action(/lang_(.+)/, (ctx) => {
   const lang = ctx.match[1];
   ctx.session = ctx.session || {};
@@ -167,27 +190,79 @@ bot.action(/lang_(.+)/, (ctx) => {
 });
 
 bot.hears(/\/flowchart (.+)/, async (ctx) => {
+  metrics.commandCounter.inc({ command: 'flowchart' });
   if (!checkRateLimit(ctx)) return;
 
   const desc = ctx.match[1];
   await ctx.reply(getMessage(ctx, "generating"));
 
-  const flow = await queryLLMFlowchart(ctx, desc);
-  if (!flow || !flow.mermaid) {
-    return ctx.reply(getMessage(ctx, "noLLMResponse"));
-  }
-
+  const timer = metrics.responseTimeHistogram.startTimer({ operation: 'flowchart_complete' });
   try {
-    const imgBuf = await fetchMermaidImageFromKroki(flow.mermaid, "png");
-    await ctx.replyWithPhoto(
-      { source: imgBuf },
-      { caption: flow.sources?.length > 0 ? `Sources:` : undefined }
-    );
+    const flow = await queryLLMFlowchart(ctx, desc);
+    if (!flow || !flow.mermaid) {
+      timer();
+      return ctx.reply(getMessage(ctx, "noLLMResponse"));
+    }
 
-    if (flow.sources && flow.sources.length > 0) {
+    try {
+      const imgBuf = await fetchMermaidImageFromKroki(flow.mermaid, "png");
+      await ctx.replyWithPhoto(
+        { source: imgBuf },
+        { caption: flow.sources?.length > 0 ? `Sources:` : undefined }
+      );
+
+      if (flow.sources && flow.sources.length > 0) {
+        const filesDir = process.env.FILES_DIR || "../../RAG_AITU/data_stud";
+
+        for (const source of flow.sources) {
+          try {
+            const cleanFilename = source.replace(/^\d+-\d+-/, "");
+            const filePath = path.join(__dirname, filesDir, source);
+
+            if (fs.existsSync(filePath)) {
+              await ctx.replyWithDocument({
+                source: filePath,
+                filename: cleanFilename,
+              });
+            }
+          } catch (error) {
+            console.error(`Error sending file ${source}:`, error);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Kroki render error:", err);
+      await ctx.reply("```mermaid\n" + flow.mermaid + "\n```", {
+        parse_mode: "Markdown",
+      });
+    }
+  } catch (error) {
+    console.error("Flowchart generation error:", error);
+    await ctx.reply(getMessage(ctx, "noLLMResponse"));
+  } finally {
+    timer();
+  }
+});
+
+
+bot.on("text", async (ctx) => {
+  metrics.messageCounter.inc({ type: 'text' });
+  if (!checkRateLimit(ctx)) return;
+
+  const text = ctx.message.text;
+  if (text.startsWith("/")) return;
+  await ctx.reply(getMessage(ctx, "searching"));
+  
+  const timer = metrics.responseTimeHistogram.startTimer({ operation: 'text_response' });
+  try {
+    const data = await queryLLM(ctx, text);
+
+    await ctx.reply(data.answer, { parse_mode: "Markdown" });
+
+    if (data.sources && data.sources.length > 0) {
       const filesDir = process.env.FILES_DIR || "../../RAG_AITU/data_stud";
 
-      for (const source of flow.sources) {
+      for (const source of data.sources) {
         try {
           const cleanFilename = source.replace(/^\d+-\d+-/, "");
           const filePath = path.join(__dirname, filesDir, source);
@@ -203,46 +278,21 @@ bot.hears(/\/flowchart (.+)/, async (ctx) => {
         }
       }
     }
-  } catch (err) {
-    console.error("Kroki render error:", err);
-    await ctx.reply("```mermaid\n" + flow.mermaid + "\n```", {
-      parse_mode: "Markdown",
-    });
-  }
-});
-
-bot.on("text", async (ctx) => {
-  if (!checkRateLimit(ctx)) return;
-
-  const text = ctx.message.text;
-  if (text.startsWith("/")) return;
-  await ctx.reply(getMessage(ctx, "searching"));
-  const data = await queryLLM(ctx, text);
-
-  await ctx.reply(data.answer, { parse_mode: "Markdown" });
-
-  if (data.sources && data.sources.length > 0) {
-    const filesDir = process.env.FILES_DIR || "../../RAG_AITU/data_stud";
-
-    for (const source of data.sources) {
-      try {
-        const cleanFilename = source.replace(/^\d+-\d+-/, "");
-        const filePath = path.join(__dirname, filesDir, source);
-
-        if (fs.existsSync(filePath)) {
-          await ctx.replyWithDocument({
-            source: filePath,
-            filename: cleanFilename,
-          });
-        }
-      } catch (error) {
-        console.error(`Error sending file ${source}:`, error);
-      }
-    }
+  } catch (error) {
+    console.error("Text processing error:", error);
+    await ctx.reply(getMessage(ctx, "noLLMResponse"));
+  } finally {
+    timer();
   }
 });
 
 bot.on(["document", "photo"], async (ctx) => {
+  if (ctx.message.document) {
+    metrics.messageCounter.inc({ type: 'document' });
+  } else if (ctx.message.photo) {
+    metrics.messageCounter.inc({ type: 'photo' });
+  }
+  
   if (!checkRateLimit(ctx)) return;
   await ctx.reply(getMessage(ctx, "analyzingFile") || "Analyzing your file...");
   let fileId, fileName;
@@ -254,6 +304,8 @@ bot.on(["document", "photo"], async (ctx) => {
     fileId = photo.file_id;
     fileName = "photo.jpg";
   }
+  
+  const timer = metrics.responseTimeHistogram.startTimer({ operation: 'file_analysis' });
   try {
     const fileLink = await ctx.telegram.getFileLink(fileId);
     const response = await axios.get(fileLink.href, {
@@ -281,13 +333,18 @@ bot.on(["document", "photo"], async (ctx) => {
       formData.append("question", prompt);
     } else {
       await ctx.reply("File format not supported.");
+      timer();
       return;
     }
+    
+    metrics.apiCallCounter.inc({ endpoint: 'docs_analyze', status: 'attempt' });
     const apiRes = await axios.post(
       `${LLM_API_URL}/api/student/docs/analyze`,
       formData,
       { headers: formData.getHeaders() }
     );
+    metrics.apiCallCounter.inc({ endpoint: 'docs_analyze', status: 'success' });
+    
     if (apiRes.data && apiRes.data.answer) {
       await ctx.reply(apiRes.data.answer, { parse_mode: "Markdown" });
     } else {
@@ -297,10 +354,13 @@ bot.on(["document", "photo"], async (ctx) => {
       );
     }
   } catch (e) {
+    metrics.apiCallCounter.inc({ endpoint: 'docs_analyze', status: 'failure' });
     console.error("File analysis error:", e);
     await ctx.reply(
       getMessage(ctx, "noLLMResponse") || "Sorry, I couldn't analyze your file."
     );
+  } finally {
+    timer();
   }
 });
 
@@ -309,26 +369,44 @@ bot.catch((err) => console.error("Bot error:", err));
 const app = express();
 app.use(express.json());
 
+// Add metrics endpoint
+app.get('/metrics', async (req, res) => {
+  try {
+    res.set('Content-Type', metrics.register.contentType);
+    res.end(await metrics.register.metrics());
+  } catch (err) {
+    res.status(500).end(err);
+  }
+});
+
+
+
 app.post("/notify", async (req, res) => {
+  metrics.apiEndpointCounter.inc({ endpoint: 'notify', status: 'attempt' });
   const { telegramId, message } = req.body;
 
   if (!telegramId || !message) {
+    metrics.apiEndpointCounter.inc({ endpoint: 'notify', status: 'failure' });
     return res.status(400).json({ error: "Missing required fields" });
   }
 
   try {
     await bot.telegram.sendMessage(telegramId, message);
+    metrics.apiEndpointCounter.inc({ endpoint: 'notify', status: 'success' });
     res.status(200).json({ success: true });
   } catch (error) {
+    metrics.apiEndpointCounter.inc({ endpoint: 'notify', status: 'failure' });
     console.error("Error sending notification:", error);
     res.status(500).json({ error: "Failed to send notification" });
   }
 });
 
 app.post("/send-answer", async (req, res) => {
+  metrics.apiEndpointCounter.inc({ endpoint: 'send-answer', status: 'attempt' });
   const { telegramId, message } = req.body;
 
   if (!telegramId || !message) {
+    metrics.apiEndpointCounter.inc({ endpoint: 'send-answer', status: 'failure' });
     return res.status(400).json({ error: "Missing required fields" });
   }
 
@@ -338,8 +416,10 @@ app.post("/send-answer", async (req, res) => {
       `📬 *Staff Response*\n\n${message}`,
       { parse_mode: "Markdown" }
     );
+    metrics.apiEndpointCounter.inc({ endpoint: 'send-answer', status: 'success' });
     res.status(200).json({ success: true });
   } catch (error) {
+    metrics.apiEndpointCounter.inc({ endpoint: 'send-answer', status: 'failure' });
     console.error("Error sending answer:", error);
     res.status(500).json({ error: "Failed to send answer" });
   }
