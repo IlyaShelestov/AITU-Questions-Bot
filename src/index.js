@@ -538,7 +538,7 @@ async function sendNextQuestion(ctx) {
 }
 
 
-// Исправленный обработчик ответов
+// Обработчик ответов с мгновенной обратной связью
 bot.action(/answer_(\d+)/, async (ctx) => {
   const test = ctx.session?.test;
   
@@ -548,21 +548,72 @@ bot.action(/answer_(\d+)/, async (ctx) => {
   }
   
   const answerIndex = parseInt(ctx.match[1], 10);
-  const currentQuestionIndex = test.currentIndex - 1; // Индекс уже увеличен в sendNextQuestion
+  const currentQuestionIndex = test.currentIndex - 1;
+  const question = test.questions[currentQuestionIndex];
+  const userAnswer = question.options[answerIndex];
+  const isCorrect = Array.isArray(question.correctAnswer) 
+    ? question.correctAnswer.includes(userAnswer)
+    : question.correctAnswer === userAnswer;
 
   // Сохранение ответа
   test.answers.push({
-    question: test.questions[currentQuestionIndex],
+    question: question,
     answer: answerIndex,
     questionNumber: currentQuestionIndex + 1
   });
 
-  await ctx.reply(`✅ Ответ сохранен (${test.answers.length}/${test.questions.length})`);
+  // Формируем сообщение с результатом
+  let resultMessage = `Вопрос ${currentQuestionIndex + 1}:\n\n`;
+  resultMessage += `❔ ${question.text}\n\n`;
+  resultMessage += `Ваш ответ: ${userAnswer}\n`;
+  resultMessage += `Правильный ответ: ${question.correctAnswer}\n\n`;
+  
+  if (isCorrect) {
+    resultMessage += `✅ Верно!\n`;
+  } else {
+    resultMessage += `❌ Неверно.\n`;
+  }
 
-  // Отправка следующего вопроса
-  await sendNextQuestion(ctx);
+  // Если есть объяснение, добавляем его
+  if (question.explanation) {
+    resultMessage += `\n📝 Объяснение:\n${question.explanation}`;
+  }
+
+  resultMessage += `\n\nПрогресс: ${test.answers.length}/${test.questions.length}`;
+
+  // Отправляем результат
+  await ctx.reply(resultMessage);
+
+  // Небольшая пауза перед следующим вопросом
+  setTimeout(async () => {
+    await sendNextQuestion(ctx);
+  }, 2000);
 });
 
+
+
+
+// Добавьте этот обработчик после других обработчиков действий (bot.action)
+bot.action('exit_test', async (ctx) => {
+  try {
+    if (ctx.session?.test) {
+      // Получаем текущий прогресс
+      const progress = `${ctx.session.test.answers.length}/${ctx.session.test.questions.length}`;
+      
+      // Очищаем данные теста
+      delete ctx.session.test;
+      
+      await ctx.reply(
+        `❌ Тест прерван!\n\nВаш прогресс: ${progress} вопросов\n\nДля начала нового теста используйте команду /aet`
+      );
+    } else {
+      await ctx.reply("Активный тест не найден. Для начала теста используйте /aet");
+    }
+  } catch (error) {
+    console.error("Ошибка при выходе из теста:", error);
+    await ctx.reply("Произошла ошибка. Попробуйте использовать /aet для начала нового теста.");
+  }
+});
 
 // Исправленная функция анализа ответов
 async function analyzeAnswers(ctx) {
